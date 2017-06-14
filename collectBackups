@@ -13,7 +13,7 @@
 #   Retrieval must use a asymmetric key pair
 
 ## Variables
-current_date="$(date +%Y%m%0d_%H%M)"
+currentDate="$(date +%Y%m%0d)"
 
 currentYear=$(date +%Y)
 maxYears=6
@@ -29,7 +29,7 @@ currentDay=01
 
 dest_dir="/home/webadmin/backups/"
 old_dir="/home/webadmin/backups/removedBackups/"
-file_extention=".tar.gz2"
+fileExtension=".tar.gz2"
 
 #src_serverNames=(amm lm mam)
 src_serverNames=(amm)
@@ -109,20 +109,27 @@ daily_rotation () {
 
     file_count=$(count_files $path $keyword);
     
-    echo "Total number of $keyword files: $file_count";
+    echo "Starting number of $keyword files: $file_count";
 
     if [[ ${file_count} -ge 7 ]]; then
-        echo "There are too many $keyword files";
         echo "";
-        echo "Files older than 7x24 hours from $current_date";
+        echo "Files older than 7 days from $currentDate";
         find ${path} -mtime +7 -iname "*daily*";
         
         echo "";
-        echo "These files will be ''deleted'' to ${old_dir}";
+        echo "Old files will be ''deleted'' to ${old_dir}";
         find ${path} -mtime +7 -iname "*daily*" -exec mv '{}' ${old_dir} \; ;
         
     fi;
+    
+    
+    file_count=$(count_files $path $keyword);
+    echo -e "\n********************************************************************************";
+    echo -e "Ending number of $keyword files: $file_count\n";
+    echo "";
+    ls $path | grep $keyword
 
+    echo -e "\n********************************************************************************\n";
 }
 
 monthly_rotation() {
@@ -141,7 +148,9 @@ monthly_rotation() {
     echo ""
     ls ${path} | grep $keyword 
 
+    echo "";
     echo "Deleting files older than $(expr 346 / 30 ) months";
+
     # Using +346 to catch files from the previous year/current month
     find ${path} -mtime +346 -iname "*monthly*" -exec rm '{}' \;
 
@@ -184,11 +193,13 @@ monthly_rotation() {
         fi;
 
     done;
-
-    echo -e "\nNow there should be a maximum of ${maxMonths} $keyword files"
+    
+    echo -e "\n********************************************************************************";
+    echo -e "Now there should be a maximum of ${maxMonths} $keyword files\n";
 
         ls ${path} | grep $keyword 
 
+    echo -e "\n********************************************************************************\n";
 }
 
 yearly_rotation() {
@@ -203,12 +214,11 @@ yearly_rotation() {
    
     file_count=$(count_files $path $keyword);
     
-    echo "Total number of $keyword files: $file_count";
-
-    echo "Look at all the files"
+    echo "Starting number of $keyword files: $file_count";
     echo ""
     ls ${path} | grep yearly
 
+    echo "";
     echo "Deleting files older than $(expr 1825 / 365) years.";
     # 5 years equals 1825 days
     find ${path} -mtime +1825 -iname "*yearly*" -exec rm '{}' \;
@@ -220,6 +230,7 @@ yearly_rotation() {
     activeYear=$currentYear
 
     while [[ $activeYear -gt $oldestYear ]]; do
+            echo -e "\n********************************************************************************";
             echo "The year is: $activeYear";
             echo "";
 
@@ -230,17 +241,7 @@ yearly_rotation() {
 
             echo "There are ${#selectedYear[@]} elements";
             echo "";
-            echo "The first element is: ${selectedYear[0]}";
-            echo "";
-            echo "The last element is: ${selectedYear[-1]}";
-            echo "";
-            echo -e "All the elements:\n";
             echo ${selectedYear[@]} | tr " " "\n";
-            echo "";
-            echo -e "A similar list from ls and grep\n";
-
-            ls ${path} | grep ${activeYear}
-
             echo "";
 
         if [[ ${numberOfElements} -gt 1 ]]; then
@@ -265,33 +266,84 @@ yearly_rotation() {
 
     done;
 
-    echo "Now there should be a maximum of ${maxYears} ${keyword} files";
+    echo -e "\n********************************************************************************";
+    echo -e "Now there should be a maximum of ${maxYears} ${keyword} files\n";
 
         ls ${path} | grep yearly
 
+    echo -e "\n********************************************************************************\n";
 }
+
+pull_files () {
+    # Retrieve backup files from remote servers
+    # Copy and rename files 
+    # 
+    # Arguments: $1 -> path
+    #            #2 -> server name
+
+    path="${1}"; 
+    serverName=${2};
+    echo -e "Target Server: $serverName\nFile destination: $path\n";
+
+    keywordArray=();
+    if [[ $(date +%m%0d) == 0101 ]]; then
+        keywordArray+=("yearly");
+    fi;
+    
+    if [[ $(date +%0d) == 01 ]]; then
+        keywordArray+=("monthly");
+    fi;
+
+    keywordArray+=("daily");
+    
+    echo -e "The retrieval array:\n${keywordArray[@]}\n";
+    echo ${keywordArray[1]};
+    for keyword in ${keywordArray[@]}; do
+
+        fileName="${path}${serverName}_${keyword}_${currentDate}${fileExtension}"
+        echo $fileName
+    done;
+    }
+
+
 
 main () {
     for i in ${src_serverNames[@]}; do
         server_name="${i}"
-        filename="${server_name}_${current_date}${file_extention}";
+
         path="${dest_dir}${server_name}/";
-        echo "Backup file name:  $filename";
-        echo "Destination path: $path";
-        echo "";
 
         if [[ ! -d ${path} ]]; then
             mkdir -p ${path};
         fi;
-#        daily_rotation $path;
+
+        echo "********************";
+        echo "Pulling backup files";
+        echo -e "********************\n";
+
+        pull_files $path $server_name;
+
+        echo "********************************"
+        echo "Starting rotation of daily files"
+        echo -e "********************************\n"
+
+        #daily_rotation $path;
         
         if [[ ${currentDay} == 01 ]]; then 
-            echo "It's the first of the month. Let's do the monthly rotation.";
-#            monthly_rotation $path;
+
+            echo "**********************************"
+            echo "Starting rotation of monthly files"
+            echo -e "**********************************\n"
+
+        #    monthly_rotation $path;
 
             if [[ ${currentMonth} == 01 ]];  then
-                echo "It's January. Let's do the yearly rotation." 
-                yearly_rotation $path;
+
+                echo "*********************************"
+                echo "Starting rotation of yearly files"
+                echo -e "*********************************\n"
+
+        #        yearly_rotation $path;
             
             fi;
         fi;
