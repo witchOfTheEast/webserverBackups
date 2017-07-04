@@ -32,7 +32,7 @@ maxMonths=12 # This doesn't actually do anything. The number of months to use
 
 destDir="/home/webadmin/backups/"
 oldDir="/home/webadmin/backups/removedBackups/"
-fileExtension=".tar.bz2"
+fileExtension=".tar.gz"
 
 
 #serverNameToIP=( [web01]="172.16.208.19" [dev01]="172.16.208.18" [doweb01]="138.68.22.172" );
