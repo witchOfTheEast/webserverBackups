@@ -12,9 +12,26 @@
 #   Files will be retrieved via scp or sftp
 #   Retrieval must use a asymmetric key pair
 
+# Each server listed here must be:
+#   Added to the serverNameToIP array
+#   Added to the serverNameToUsername array
+#   Added to the case statement in main ()
+#   Added as a variable: <<servername>>Sites to enumerate the websites to back up
+
+#srcServerNames=("dev01" "doweb01" )
+srcServerNames=( "dev01" )
+
+# Declaring this is important because later indexing from the array doesn't get the right value otherwise
+declare -A serverNameToIP
+declare -A serverNameToUsername
+serverNameToIP=([dev01]="97.93.161.250" [doweb01]="138.68.22.173");
+serverNameToUsername=([dev01]="backupadmin" [doweb01]="backupadmin");
+
+doweb01Sites=(  "amm" "mam" )
+dev01Sites=( "amm" )
+
 ## Variables
 identityFilePath="/home/webadmin/.ssh/id_rsa"
-identityUsername="backupadmin"
 currentDate="$(date +%Y%m%0d)"
 
 currentYear="$(date +%Y)"
@@ -33,24 +50,6 @@ maxMonths=12 # This doesn't actually do anything. The number of months to use
 destDir="/home/webadmin/backups/"
 oldDir="/home/webadmin/backups/removedBackups/"
 fileExtension=".tar.gz"
-
-
-#serverNameToIP=( [web01]="172.16.208.19" [dev01]="172.16.208.18" [doweb01]="138.68.22.172" );
-# Declaring this is important because later indexing from the array doesn't get the right value otherwise
-declare -A serverNameToIP
-serverNameToIP=([web01]="97.93.161.251" [dev01]="97.93.161.250" [doweb01]="138.68.22.173");
-
-web01Sites=( "testingamm" )
-doweb01Sites=(  "amm" "mam" )
-dev01Sites=( "amm" )
-
-# The srcServerNames array may need to be created dynamically maybe by pulling file lists
-# from each server and searching for the first part of each file name 
-
-
-
-#srcServerNames=( "web01" "dev01" "doweb01" )
-srcServerNames=( "dev01" )
 
 echo "The source server names are: ${srcServerNames[@]}"
 
@@ -305,14 +304,15 @@ pull_files () {
     siteName=${3};
    
     serverIP=${serverNameToIP[${serverName}]};
-    
+    serverUsername=${serverNameToUsername[$serverName]};
+
     echo -e "Target Server: $serverName\nTarget IP: ${serverIP}\nTarget Site: $siteName\nFile destination: $path\n";
 
     destFilePathName="${path}${serverName}_${siteName}_${currentDate}${fileExtension}"
    
     srcFileNamePath="backups/${siteName}_backup${fileExtension}";
-    echo "scp -i ${identityFilePath} ${identityUsername}@${serverIP}:${srcFileNamePath} ${destFilePathName}";
-    scp -i ${identityFilePath} ${identityUsername}@${serverIP}:${srcFileNamePath} ${destFilePathName};
+    echo "scp -i ${identityFilePath} ${serverUsername}@${serverIP}:${srcFileNamePath} ${destFilePathName}";
+    scp -i ${identityFilePath} ${serverUsername}@${serverIP}:${srcFileNamePath} ${destFilePathName};
     
     if ! [[ -e ${destFilePathName} ]]; then
         echo "Something has gone wrong. After scp, ${destFilePathName} is missing.";
@@ -341,7 +341,7 @@ pull_files () {
         
         if [[ ${fileCount} -ge 2 ]]; then
             #rm ${destFilePathName};
-            ssh -i ${identityFilePath} ${identityUsername}@${serverIP} "cp ${srcFileNamePath} ${srcFileNamePath}_old && rm ${srcFileNamePath}";
+            ssh -i ${identityFilePath} ${serverUsername}@${serverIP} "cp ${srcFileNamePath} ${srcFileNamePath}_old && rm ${srcFileNamePath}";
         fi
     fi
 
@@ -399,14 +399,6 @@ main () {
                 for siteName in ${doweb01Sites[@]}; do
                     echo "$serverName $siteName";
                     exit 1;
-                    execute_things $serverName $siteName;
-                done;
-                ;;
-
-            web01)
-                for siteName in ${web01Sites[@]}; do
-                    echo "$serverName $siteName";
-                    exit 2;
                     execute_things $serverName $siteName;
                 done;
                 ;;
