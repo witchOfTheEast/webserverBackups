@@ -1,0 +1,53 @@
+#!/bin/bash
+
+mysqlPasswordFilePath="/home/webadmin/scripts/webserverBackups/.tempsql"
+
+destDir="/home/backupadmin/backups/"
+
+siteSrcDir="/var/www/html/"
+
+fileExtension=".tar.gz"
+
+stagingDir="/home/webadmin/backupStaging/"
+
+curDate=$(date +%Y%m%0d)
+
+sites=(amm mam)
+
+declare -A databaseNames
+declare -A docRootPaths
+
+databaseNames=([amm]="wpamm" [mam]="wpmam")
+docRootPaths=([amm]="/var/www/amm/" [mam]="/var/www/mam/")
+
+for i in ${sites[@]}; do
+    echo $i;
+    siteName=${i};
+    databaseName=${databaseNames[${siteName}]};
+    docRootPath=${docRootPaths[${siteName}]};
+    dumpFileName="${databaseName}DBdump_${siteName}_${curDate}.sql";
+    mysqlDBdumpFileName="mysqlDBdump_${siteName}_${curDate}.sql";
+    destFileName="${siteName}_backup"
+
+    destFileNamePath="${destDir}${destFileName}${fileExtension}"
+
+    dumpFileNamePath="${stagingDir}${dumpFileName}"
+    mysqlDBdumpFileNamePath="${stagingDir}${mysqlDBdumpFileName}"
+
+
+    mysqldump --defaults-extra-file=${mysqlPasswordFilePath} --add-drop-table ${databaseName} > ${dumpFileNamePath}
+    mysqldump --defaults-extra-file=${mysqlPasswordFilePath} --add-drop-table mysql > ${mysqlDBdumpFileNamePath}
+
+    ls -lh ${stagingDir}
+
+    if [[ -e ${dumpFileNamePath} ]]; then
+        tar -czf ${destFileNamePath} ${docRootPath} -C ${stagingDir} ${dumpFileName} ${mysqlDBdumpFileName}
+    else
+        echo "Something went wrong. There is no .sql dump file in ${stagingDir}";
+    fi
+
+    if [[ -e ${destFileNamePath} ]]; then
+        rm "${dumpFileNamePath}";
+        rm "${mysqlDBdumpFileNamePath}";
+    fi
+done
