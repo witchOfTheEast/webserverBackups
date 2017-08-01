@@ -1,9 +1,12 @@
 #!/bin/bash
 
 
-__LOGLEVEL=3
+__LOGLEVEL=4
 
-logFilePath=/home/webadmin/backupLogFile
+
+#This needs to be added to logrotate
+logFilePath=/var/log/backupadmin/scriptedBackup.log
+
 exec 1>>${logFilePath}
 exec 2>>${logFilePath}
 
@@ -113,5 +116,6 @@ for i in ${sites[@]}; do
         rm "${mysqlDBdumpFileNamePath}";
     fi
 done
+.log info "$(echo "Final contents of ${destDir}"; ls -lh ${destDir} | grep -v "total")"
 
 .log crit "***Reach end of ${scriptName}***"
