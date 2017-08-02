@@ -1,8 +1,6 @@
 #!/bin/bash
 
-
 __LOGLEVEL=4
-
 
 #This needs to be added to logrotate
 logFilePath=/var/log/backupadmin/scriptedBackup.log
@@ -85,17 +83,16 @@ for i in ${sites[@]}; do
     if [[ -e ${dumpFileNamePath} ]]; then
         .log debug "Beginning tar of backup files";
 
-        .log debug "Tar'ing of ${stagingDir}${dumpFileName} and ${stagingDir}${mysqlDBdumpFileName}";
-        #tar -cf ${tarFileNamePath} -C ${stagingDir} ${dumpFileName} ${mysqlDBdumpFileName} 2>&1 | grep -v "tar: Removing leading";
+        .log debug "tar'ing of ${stagingDir}${dumpFileName} and ${stagingDir}${mysqlDBdumpFileName}";
         tar -cf ${tarFileNamePath} -C ${stagingDir} ${dumpFileName} ${mysqlDBdumpFileName} 2>&1 | grep -v "tar: Removing leading";
 
-        .log debug "Tar'ing append of ${httpdConfigDir}";
+        .log debug "tar'ing append of ${httpdConfigDir}";
         tar --exclude=run --exclude=logs --exclude=modules -rf ${tarFileNamePath} ${httpdConfigDir} 2>&1 | grep -v "tar: Removing leading";
 
-        .log debug "Tar'ing append of ${docRootPath}";
+        .log debug "tar'ing append of ${docRootPath}";
         tar -rf ${tarFileNamePath} ${docRootPath} 2>&1 | grep -v "tar: Removing leading";
        
-        .log debug "Zip'ing of ${tarFileNamePath}";
+        .log debug "zip'ing of ${tarFileNamePath}";
         # this alters the file name
         gzip -f ${tarFileNamePath};
 
