@@ -118,4 +118,4 @@ for i in ${sites[@]}; do
 done
 .log info "$(echo "Final contents of ${destDir}"; ls -lh ${destDir} | grep -v "total")"
 
-.log crit "***Reach end of ${scriptName}***"
+.log crit "***Reached end of ${scriptName}***"
