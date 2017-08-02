@@ -1,20 +1,49 @@
 #!/bin/bash
 
+__LOGLEVEL=5
+
 userDir="/home/fftlifestyle/"
+
+#This needs to be added to logrotate
+logFilePath="${userDir}logs/backupadmin/scriptedBackup.log"
+
+exec 1>>${logFilePath}
+exec 2>>${logFilePath}
+
+declare -A logNameToLevel
+logNameToLevel=([crit]="1" [error]="2" [warn]="3" [info]="4" [debug]="5")
+
+function .log () {
+    local levelName=${1};
+    local level=${logNameToLevel[${levelName}]};
+
+    # this moves the parameter numbers
+    shift;
+
+    if [[ ${__LOGLEVEL} -ge ${level} ]]; then
+        echo -e "[${levelName}]" "$@";
+    fi;
+}
+
+scriptName="$(basename $0)"
+timeStamp=$(date +%Y%m%0d-%H:%M:%S)
+.log crit "***Starting ${scriptName}***"
+.log crit "${timeStamp}"
 
 mysqlPasswordFilePath="${userDir}scripts/webserverBackups/.tempsql"
 
 destDir="${userDir}backups/"
+.log info "Destination directory: ${destDir}"
 
-siteSrcDir="${userDir}public_html/"
-
-fileExtension=".tar.gz"
+tarFileExtension=".tar"
+gzipTarFileExtension=".tar.gz"
 
 stagingDir="${userDir}backupStaging/"
 
 curDate=$(date +%Y%m%0d)
 
 sites=(lm)
+.log debug "Sites we know about: ${sites[@]}"
 
 declare -A databaseNames
 declare -A docRootPaths
@@ -23,34 +52,54 @@ databaseNames=([lm]="i2687485_wp2")
 docRootPaths=([lm]="${userDir}public_html/")
 
 for i in ${sites[@]}; do
-    echo $i;
+    .log debug "Parameter received in for loop";
+
     siteName=${i};
     databaseName=${databaseNames[${siteName}]};
     docRootPath=${docRootPaths[${siteName}]};
     dumpFileName="${databaseName}DBdump_${siteName}_${curDate}.sql";
-    mysqlDBdumpFileName="mysqlDBdump_${siteName}_${curDate}.sql";
     destFileName="${siteName}_backup"
 
-    destFileNamePath="${destDir}${destFileName}${fileExtension}"
+    tarFileNamePath="${destDir}${destFileName}${tarFileExtension}";
+    destFileNamePath="${destDir}${destFileName}${gzipTarFileExtension}";
 
     dumpFileNamePath="${stagingDir}${dumpFileName}"
-    mysqlDBdumpFileNamePath="${stagingDir}${mysqlDBdumpFileName}"
 
+    .log info "Beginning backup of ${siteName}";
+    .log debug "Document Root path: ${docRootPath}";
+    .log debug "Database name: ${databaseName}";
+    .log debug "Temporary database dump file: ${dumpFileNamePath}";
+    .log debug "Beginning mysqldump of database ${databaseName}";
 
     mysqldump --defaults-extra-file=${mysqlPasswordFilePath} --add-drop-table ${databaseName} > ${dumpFileNamePath}
-    #mysqldump --defaults-extra-file=${mysqlPasswordFilePath} --add-drop-table mysql > ${mysqlDBdumpFileNamePath}
 
-    ls -lh ${stagingDir}
+    .log debug "Confirm contents of staging directory";
+    .log debug "$(ls -lh ${stagingDir})";
 
     if [[ -e ${dumpFileNamePath} ]]; then
-        #tar -czf ${destFileNamePath} ${docRootPath} -C ${stagingDir} ${dumpFileName} ${mysqlDBdumpFileName}
-        tar -czf ${destFileNamePath} ${docRootPath} -C ${stagingDir} ${dumpFileName} 
+        .log debug "Beginning tar of backup files";
+
+        .log debug "tar'ing of ${stagingDir}${dumpFileName}";
+        tar -cf ${tarFileNamePath} -C ${stagingDir} ${dumpFileName} 2>&1 | grep -v "tar: Removing leading";
+
+        .log debug "tar'ing append of ${docRootPath}";
+        tar -rf ${tarFileNamePath} ${docRootPath} 2>&1 | grep -v "tar: Removing leading";
+       
+        .log debug "zip'ing of ${tarFileNamePath}";
+        # this alters the file name
+        gzip -f ${tarFileNamePath};
+
     else
-        echo "Something went wrong. There is no .sql dump file in ${stagingDir}";
+        #echo "Something went wrong. There is no .sql dump file in ${stagingDir}";
+        .log crit "Something went wrong. There is no .sql dump file in ${stagingDir}";
     fi
 
-    #if [[ -e ${destFileNamePath} ]]; then
-    #    rm "${dumpFileNamePath}";
-    #    rm "${mysqlDBdumpFileNamePath}";
-    #fi
+    if [[ -e ${destFileNamePath} ]]; then
+        .log debug "Removing temp files";
+        #echo "Removing temp files";
+        rm "${dumpFileNamePath}";
+    fi
 done
+.log info "$(echo "Final contents of ${destDir}"; ls -lh ${destDir} | grep -v "total")"
+
+.log crit "***Reached end of ${scriptName}***"
