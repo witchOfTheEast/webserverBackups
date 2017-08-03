@@ -89,6 +89,10 @@ for i in ${sites[@]}; do
         # this alters the file name
         gzip -f ${tarFileNamePath};
 
+        .log info "Destination file: ${destFileNamePath}";
+
+        md5=$(md5sum ${destFileNamePath} | awk '{ print $1 }');
+        .log info "Destination file md5: ${md5}";
     else
         #echo "Something went wrong. There is no .sql dump file in ${stagingDir}";
         .log crit "Something went wrong. There is no .sql dump file in ${stagingDir}";
