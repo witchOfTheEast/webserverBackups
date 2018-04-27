@@ -12,13 +12,13 @@ stagingDir="/home/webadmin/backupStaging/"
 
 curDate=$(date +%Y%m%0d)
 
-sites=(amm mam)
+sites=(amm)
 
 declare -A databaseNames
 declare -A docRootPaths
 
-databaseNames=([amm]="wpamm" [mam]="wpmam")
-docRootPaths=([amm]="/var/www/amm/" [mam]="/var/www/mam/")
+databaseNames=([amm]="amm")
+docRootPaths=([amm]="/var/www/adventistmediaministries.com/")
 
 for i in ${sites[@]}; do
     echo $i;
