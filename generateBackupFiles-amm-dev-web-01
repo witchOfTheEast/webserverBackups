@@ -49,14 +49,14 @@ stagingDir="/home/webadmin/backupStaging/"
 
 curDate=$(date +%Y%m%0d)
 
-sites=(amm fft)
+sites=(amm fft ltr)
 .log debug "Sites we know about: ${sites[@]}"
 
 declare -A databaseNames
 declare -A docRootPaths
 
-databaseNames=([amm]="ammwp" [fft]="fftwp")
-docRootPaths=([amm]="/var/www/adventistmediaministries.com/" [fft]="/var/www/faithfortoday.tv")
+databaseNames=([amm]="ammwp" [fft]="fftwp" [ltr]="ltrwp")
+docRootPaths=([amm]="/var/www/adventistmediaministries.com/" [fft]="/var/www/faithfortoday.tv" [ltr]="/var/www/lifetalkradio.net")
 
 for i in ${sites[@]}; do
     .log debug "Parameter received in for loop";
