@@ -55,8 +55,8 @@ sites=(amm fft)
 declare -A databaseNames
 declare -A docRootPaths
 
-databaseNames=([amm]="amm")
-docRootPaths=([amm]="/var/www/adventistmediaministries.com/")
+databaseNames=([amm]="amm" [fft]="fft" )
+docRootPaths=([amm]="/var/www/html/adventistmediaministries.com/" [fft]="/var/www/html/faithfortoday.tv/")
 
 for i in ${sites[@]}; do
     .log debug "Parameter received in for loop";
@@ -84,9 +84,25 @@ for i in ${sites[@]}; do
 
     .log debug "Beginning mysqldump of database mysql";
     mysqldump --defaults-extra-file=${mysqlPasswordFilePath} --add-drop-table mysql > ${mysqlDBdumpFileNamePath}
-
+	
     .log debug "Confirm contents of staging directory";
     .log debug "$(ls -lh ${stagingDir})";
+
+	test=0
+
+	for file in "${dumpFileNamePath}" "${mysqlDBdumpFileNamePath}"; do
+		
+		if [[ ! -s ${file} ]]; then
+			.log crit "${file} size seems to be zero (0). Please check.";
+			test=1;
+		fi;
+	done
+
+	if [[ ${test} != 0 ]]; then
+		.log crit "DB dump files are invalid. Please check size.";
+		exit 1;
+	fi	
+
 
     if [[ -e ${dumpFileNamePath} ]]; then
         .log debug "tar'ing of ${stagingDir}${dumpFileName} and ${stagingDir}${mysqlDBdumpFileName}";
