@@ -49,7 +49,7 @@ stagingDir="/home/webadmin/backupStaging/"
 
 curDate=$(date +%Y%m%0d)
 
-sites=(amm fft ltr)
+sites=(amm fft ltr mam)
 .log debug "Sites we know about: ${sites[@]}"
 
 declare -A databaseNames
