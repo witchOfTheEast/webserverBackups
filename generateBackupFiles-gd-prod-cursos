@@ -1,0 +1,133 @@
+#!/bin/bash
+
+__LOGLEVEL=5
+
+# Required for each site to be backed up:
+# 
+#    Add site name to sites
+#    Add database name to databaseNames
+#    Add document root path to docRootPaths
+#        Double check sites against databaseNames and docRoots
+
+#This needs to be added to logrotate
+cd /home/i4843259938378/ammBackupScript
+logFilePath="./scriptedBackup.log"
+
+exec 1>>${logFilePath}
+exec 2>>${logFilePath}
+
+declare -A logNameToLevel
+logNameToLevel=([crit]="1" [error]="2" [warn]="3" [info]="4" [debug]="5")
+
+function wrtlog () {
+    local levelName=${1};
+    local level=${logNameToLevel[${levelName}]};
+
+    # this moves the parameter numbers
+    shift;
+
+    if [[ ${__LOGLEVEL} -ge ${level} ]]; then
+        echo -e "[${levelName}]" "$@";
+    fi;
+}
+
+scriptName="$(basename $0)"
+timeStamp=$(date +%Y%m%0d-%H:%M:%S)
+wrtlog crit "***Starting ${scriptName}***"
+wrtlog crit "${timeStamp}"
+
+mysqlPasswordFilePath="./.tempsql"
+
+destDir="/home/i4843259938378/backups/"
+wrtlog info "Destination directory: ${destDir}"
+
+wrtlog info "touching to fake the httpd conf we don't have access to"
+touch ./null
+httpdConfigDir="./null/"
+
+tarFileExtension=".tar"
+gzipTarFileExtension=".tar.gz"
+
+stagingDir="./backupStaging/"
+
+curDate=$(date +%Y%m%0d)
+
+sites=(cursos) 
+wrtlog debug "Sites we know about: ${sites[@]}"
+
+declare -A databaseNames
+declare -A docRootPaths
+
+databaseNames=([cursos]="i4843259938378")
+docRootPaths=([amm]="/home/i4843259938378/html/")
+
+for i in ${sites[@]}; do
+    wrtlog debug "Parameter received in for loop";
+    siteName=${i};
+    databaseName=${databaseNames[${siteName}]};
+    #docRootPath=${docRootPaths[${siteName}]};
+    wrtlog info "This site doesn't conform to standards. DocRoot hardcoded here."
+    docRootPath="/home/i4843259938378/html/";
+    dumpFileName="${databaseName}DBdump_${siteName}_${curDate}.sql";
+    mysqlDBdumpFileName="mysqlDBdump_${siteName}_${curDate}.sql";
+    destFileName="${siteName}_backup"
+
+    tarFileNamePath="${destDir}${destFileName}${tarFileExtension}";
+    destFileNamePath="${destDir}${destFileName}${gzipTarFileExtension}"
+
+    dumpFileNamePath="${stagingDir}${dumpFileName}"
+    mysqlDBdumpFileNamePath="${stagingDir}${mysqlDBdumpFileName}"
+
+    wrtlog info "Beginning backup of ${siteName}";
+    wrtlog debug "Document Root path: ${docRootPath}";
+    wrtlog debug "Database name: ${databaseName}";
+    wrtlog debug "Temporary database dump file: ${dumpFileNamePath}";
+    wrtlog debug "Temporary mysql database dump file: ${mysqlDBdumpFileNamePath}";
+
+    wrtlog debug "Beginning mysqldump of database ${databaseName}";
+    mysqldump --defaults-extra-file=${mysqlPasswordFilePath} --add-drop-table ${databaseName} > ${dumpFileNamePath}
+
+#    wrtlog debug "Beginning mysqldump of database mysql";
+    wrtlog debug "touching ${mysqlDBdumpNameFilePath} to fake the mysql db we don't have access to";
+#    mysqldump --defaults-extra-file=${mysqlPasswordFilePath} --add-drop-table mysql > ${mysqlDBdumpFileNamePath}
+    touch ${mysqlDBdumpFileNamePath};
+
+    wrtlog debug "Confirm contents of staging directory";
+    wrtlog debug "$(ls -lh ${stagingDir})";
+
+    if [[ -e ${dumpFileNamePath} ]]; then
+        wrtlog debug "tar'ing of ${stagingDir}${dumpFileName} and ${stagingDir}${mysqlDBdumpFileName}";
+        tar -cf ${tarFileNamePath} -C ${stagingDir} ${dumpFileName} ${mysqlDBdumpFileName} 2>&1 | grep -v "tar: Removing leading";
+
+        wrtlog debug "tar'ing append of ${httpdConfigDir}";
+        tar --exclude=run --exclude=logs --exclude=modules -rf ${tarFileNamePath} ${httpdConfigDir} 2>&1 | grep -v "tar: Removing leading";
+
+        wrtlog debug "tar'ing append of ${docRootPath}";
+        #tar -rf ${tarFileNamePath} ${docRootPath} 2>&1 | grep -v "tar: Removing leading";
+        tar -rf ${tarFileNamePath} ${docRootPath} 2>&1 | grep -v "tar: Removing leading";
+        
+        wrtlog debug "zip'ing of ${tarFileNamePath}";
+        # this alters the file name
+        gzip -f ${tarFileNamePath};
+
+        wrtlog info "Destination file: ${destFileNamePath}";
+
+        md5=$(md5sum ${destFileNamePath} | awk '{ print $1 }');
+        wrtlog info "Destination file md5: ${md5}";
+
+    else
+        #echo "Something went wrong. There is no .sql dump file in ${stagingDir}";
+        wrtlog crit "Something went wrong. There is no .sql dump file in ${stagingDir}";
+    fi
+
+    if [[ -e ${destFileNamePath} ]]; then
+        wrtlog debug "Removing temp files";
+        #echo "Removing temp files";
+        rm "${dumpFileNamePath}";
+    
+        rm "${mysqlDBdumpFileNamePath}";
+    fi
+done
+wrtlog info "$(echo "Final contents of ${destDir}"; ls -lh ${destDir} | grep -v "total")"
+
+wrtlog crit "***Reached end of ${scriptName}***\n\n"
